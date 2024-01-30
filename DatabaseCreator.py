@@ -39,8 +39,16 @@ class Database:
                 self.cursor = self.conn.cursor()
                 print(f"Connection to database: {self.database_name} successful")
             except mysql.connector.Error as err:
-                print("Something went wrong trying to reconnect")
+                print("Something went wrong trying to reconnect: ", err)
                 self.reconnect_to_database()
+
+    def drop_tables(self):
+        try:
+            self.cursor.execute("DROP TABLE MESSAGES;")
+            self.cursor.execute("DROP TABLE CHATS;")
+            self.cursor.execute("DROP TABLE TICKETS;")
+        except Exception as err:
+            print("Something went wrong while drop tables ", err)
 
     def reconnect_to_database(self):
         counter = 0
@@ -96,12 +104,12 @@ class TableMessages:
             print(f"Something went wrong while creating table: {err}")
             self.db.connect()
 
-    def get_all_messages_by_chat_id(self, room_key):
+    def get_all_messages_by_chat_id(self, room):
         try:
             query_chat_id = '''
-            SELECT CHAT_ID FROM CHATS WHERE CHAT_KEY = (%s);
+            SELECT CHAT_ID FROM CHATS WHERE USER_ID=(%s);
             '''
-            self.cursor.execute(query_chat_id, (room_key,))
+            self.cursor.execute(query_chat_id, (room,))
             chat_id = self.cursor.fetchone()[0]
             query = '''
             SELECT * FROM MESSAGES WHERE CHAT_ID=(%s);
@@ -112,11 +120,11 @@ class TableMessages:
             print(f"Something went wrong while inserting chat to database\nError: {err}")
             self.db.connect()
 
-    def insert_message(self, user_id, message_txt, timestamp, name, chat_key):
+    def insert_message(self, user_id, message_txt, timestamp, name, room):
         try:
             # Receiving chat id by user id from table CHATS
-            query_chat_id = "SELECT CHAT_ID FROM CHATS WHERE CHAT_KEY = %s"
-            self.cursor.execute(query_chat_id, (chat_key,))
+            query_chat_id = "SELECT CHAT_ID FROM CHATS WHERE USER_ID=(%s)"
+            self.cursor.execute(query_chat_id, (room,))
             chat_id = self.cursor.fetchone()[0]
             # Inserting message into table MESSAGES after getting chat id
             print(chat_id)
@@ -143,8 +151,7 @@ class TableChats:
                 query_string = '''
                                 CREATE TABLE CHATS (
                                 CHAT_ID INTEGER PRIMARY KEY AUTO_INCREMENT,
-                                USER_ID INTEGER,
-                                CHAT_KEY CHAR(50)
+                                USER_ID INTEGER
                                 );
                                 '''
                 self.cursor.execute(query_string)
@@ -169,7 +176,7 @@ class TableChats:
     def get_chat_by_key(self, room_key):
         try:
             query = '''
-            SELECT * FROM CHATS WHERE CHAT_KEY=(%s);
+            SELECT * FROM CHATS WHERE USER_ID=(%s);
             '''
             self.cursor.execute(query, (room_key,))
             return self.cursor.fetchone()
@@ -177,14 +184,14 @@ class TableChats:
             print(f"Something went wrong while inserting chat to database\nError: {err}")
             self.db.connect()
 
-    def insert_chat(self, user_id, room_key):
+    def insert_chat(self, user_id):
         try:
             # Inserting chat into table CHATS
             query_insert_message = """
-                                INSERT INTO CHATS (USER_ID, CHAT_KEY) 
-                                VALUES (%s, %s)
+                                INSERT INTO CHATS (USER_ID) 
+                                VALUES (%s);
                                 """
-            self.cursor.execute(query_insert_message, (user_id, room_key))
+            self.cursor.execute(query_insert_message, (user_id,))
             print("Chat successfully inserted into CHATS table")
         except Exception as err:
             print(f"Something went wrong while inserting chat to database\nError: {err}")

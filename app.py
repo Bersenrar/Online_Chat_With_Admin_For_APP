@@ -15,6 +15,8 @@ socketio = SocketIO(app)
 db = Database("localhost", DB_Password, "admin", "chatdatabase")
 db.connect()
 
+db.drop_tables()
+
 table_chats = TableChats(db)
 table_chats.create_table()
 
@@ -26,21 +28,8 @@ table_tickets.create_table()
 
 user_id_counter = 1
 ticket_id_counter = 1
-key_len = 4
-# chats = []
 tickets = []
 existing_keys = []
-
-
-def generate_user_room_key():
-    global key_len
-    while True:
-        key = ""
-        for _ in range(key_len):
-            key = key + random.choice(ascii_uppercase)
-        if key not in existing_keys:
-            existing_keys.append(key)
-            return key
 
 
 @app.route("/", methods=["GET", "POST"])
@@ -55,16 +44,16 @@ def user_start_page():
 
         print(f"Current user id is: {user_id_counter}\nUser Message: {user_message}")
 
-        room_key = generate_user_room_key()
-
-        session["room"] = room_key
         session["user_id"] = user_id_counter
+        session["room"] = user_id_counter
         session["name"] = f"User_{user_id_counter}"
 
-        table_chats.insert_chat(user_id=user_id_counter, room_key=room_key)
+        table_chats.insert_chat(user_id=user_id_counter)
         table_messages.insert_message(user_id=user_id_counter, message_txt=user_message,
-                                      timestamp=datetime.datetime.now().isoformat(), name="User", chat_key=room_key)
+                                      timestamp=datetime.datetime.now().isoformat(), name="User", room=user_id_counter)
         table_tickets.insert_ticket(user_id=user_id_counter)
+
+        existing_keys.append(user_id_counter)
 
         user_id_counter += 1
         return redirect(url_for("chat_with_admin"))
@@ -83,19 +72,24 @@ def admin_start_page():
     session["name"] = "Admin"
     session["user_id"] = -1
     database_response = table_chats.get_all_chats()
-    chats = [{"chat_id": chat[0], "user_id": chat[1], "room_key": chat[2]} for chat in database_response]
+    print("____________________________", "\nAll existing chats:", database_response, "\n____________________________")
+    chats = [{"chat_id": chat[0], "user_id": chat[1], "room_key": chat[1]} for chat in database_response]
     return render_template("admin_chat_list.html", chats=chats)  # Render a different template that lists all chats
 
 
-@app.route("/admin_page/chat/<chat_id>")
+@app.route("/admin_page/chat/<int:chat_id>")
 def admin_chat_page(chat_id):
     session["room"] = chat_id
+    print(existing_keys)
     return render_template("chat.html")
 
 
 @socketio.on("message")
 def handle_message(data):
-    room = session.get("room")
+    room = int(session.get("room"))
+    print(f"HANDLE MESSAGE\nRoom: {room}\nName: {session['name']}")
+    print("Current room: ", room, "Existing rooms: ", existing_keys)
+    print("Received data: ", data)
     if room not in existing_keys:
         return
     content = {
@@ -103,17 +97,20 @@ def handle_message(data):
         "message": data["data"],
         "date": datetime.datetime.now().isoformat()
     }
-    print(content)
+    print("Received content: ", content)
     send(content, to=room)
+    # send({"name": "Server", "message": "Message received by server", "date": datetime.datetime.now().isoformat()},
+    #      to=room)
     table_messages.insert_message(user_id=session["user_id"], message_txt=content["message"],
-                                  timestamp=content["date"], name=content["name"], chat_key=room)
+                                  timestamp=content["date"], name=content["name"], room=room)
+    # for user in connected_users:
+    #     send(content, room=user)
 
 
 @socketio.on("connect")
 def connect(auth):
     room = session.get("room")
     name = session.get("name")
-
     join_room(room)
     send({"name": name, "message": "Connected in chat", "date": datetime.datetime.now().isoformat()}, to=room)
     print(f"{name} has joined the room {room}")
@@ -121,11 +118,11 @@ def connect(auth):
     chat_key = table_chats.get_chat_by_key(room)
     print(chat_key)
     if chat_key:
-        chat_messages = table_messages.get_all_messages_by_chat_id(chat_key[2])
+        chat_messages = table_messages.get_all_messages_by_chat_id(room)
         print(chat_messages)
         if chat_messages:
             for message in chat_messages:
-                print(message)
+                # print(message)
                 send({
                     "name": message[1],
                     "message": message[3],
