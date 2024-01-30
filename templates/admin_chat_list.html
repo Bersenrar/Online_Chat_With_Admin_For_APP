@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Chat List</title>
+    <link href="https://fonts.googleapis.com/css?family=Roboto:300,400,500,700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='admin.css') }}">
+</head>
+<body>
+    <div class="admin-container">
+        <header class="admin-header">
+            <h1>Chatbot Admin Panel</h1>
+        </header>
+        <div class="tabs">
+            <button id="chats-tab" class="tab-button active" onclick="switchTab('chats')">Chats</button>
+            <button id="tickets-tab" class="tab-button" onclick="switchTab('tickets')">Support Tickets</button>
+            <button id="users-tab" class="tab-button" onclick="switchTab('users')">Users</button>
+        </div>
+        <div id="chats-content" class="content">
+            <ul id="chat-list">
+                {% for chat in chats %}
+                    <li>
+                        <a href="{{ url_for('admin_chat_page', chat_id=chat['room_key']) }}">
+                            Chat with User {{ chat['user_id'] }}
+                        </a>
+                    </li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+</body>
+</html>

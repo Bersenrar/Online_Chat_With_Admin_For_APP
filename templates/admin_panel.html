@@ -1,0 +1,23 @@
+{% extends 'index.html' %}
+
+{% block content %}
+
+<div class="admin_start_page">
+    <h3>Available Tickets</h3>
+
+    {% for ticket in tickets.items() %}
+    <div class="ticket_cont">
+        <form class="ticket_acception_form" method="post">
+            <ul>
+                {% for key, value in ticket %}
+                    <li><strong>{{ key }}</strong>: {{ value }}</li>
+                {% endfor %}
+            </ul>
+            <input type="hidden" name="ticket_id" value="{{ ticket_id }}">
+            <button type="submit" name="accept_button" value="accept">Accept</button>
+        </form>
+    </div>
+    {% endfor %}
+</div>
+
+{% endblock %}

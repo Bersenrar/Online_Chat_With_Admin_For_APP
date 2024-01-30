@@ -1,0 +1,20 @@
+{% extends 'index.html' %}
+
+{% block content %}
+{% if error %}
+<ul class="error_block">
+    <li>{{error}}</li>
+</ul>
+{% endif %}
+<form method="post" class="buttons">
+    <h3>Press the button to ask admin for chat</h3>
+    <div>
+        <label>Enter your request:</label>
+        <input type="text" placeholder="Enter your message" name="user_message" value="{{user_message}}"/>
+    </div>
+    <div class="call_admin">
+        <button type="submit" class="call" name="call">Call admin</button>
+    </div>
+</form>
+{% endblock %}
+
